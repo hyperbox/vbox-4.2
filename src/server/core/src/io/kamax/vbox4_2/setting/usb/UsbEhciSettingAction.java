@@ -23,7 +23,7 @@ package io.kamax.vbox4_2.setting.usb;
 import org.altherian.hbox.constant.MachineAttribute;
 import org.altherian.setting.BooleanSetting;
 import org.altherian.setting._Setting;
-import org.altherian.vbox.settings.usb.UsbEhciSetting;
+import io.kamax.vbox.settings.usb.UsbEhciSetting;
 import io.kamax.vbox4_2.setting._MachineSettingAction;
 import org.virtualbox_4_2.IMachine;
 import org.virtualbox_4_2.LockType;

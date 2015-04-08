@@ -22,7 +22,7 @@ package io.kamax.vbox4_2.setting.network;
 
 import org.altherian.hbox.constant.NetworkInterfaceAttribute;
 import org.altherian.setting._Setting;
-import org.altherian.vbox.settings.network.NicAttachNameSetting;
+import io.kamax.vbox.settings.network.NicAttachNameSetting;
 import io.kamax.vbox4_2.setting._NetworkInterfaceSettingAction;
 import org.virtualbox_4_2.INetworkAdapter;
 import org.virtualbox_4_2.LockType;
