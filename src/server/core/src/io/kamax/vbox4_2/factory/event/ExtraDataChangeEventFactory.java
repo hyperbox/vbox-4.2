@@ -1,5 +1,5 @@
 /*
- * Hyperbox - Enterprise Virtualization Manager
+ * Hyperbox - Virtual Infrastructure Manager
  * Copyright (C) 2015 Maxime Dor
  * 
  * http://kamax.io/hbox/

@@ -1,5 +1,5 @@
 /*
- * Hyperbox - Enterprise Virtualization Manager
+ * Hyperbox - Virtual Infrastructure Manager
  * Copyright (C) 2013-2015 Maxime Dor
  * hyperbox at altherian dot org
  * 
