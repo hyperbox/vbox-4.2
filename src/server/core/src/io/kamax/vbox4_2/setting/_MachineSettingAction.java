@@ -20,7 +20,7 @@
 
 package io.kamax.vbox4_2.setting;
 
-import org.altherian.setting._Setting;
+import io.kamax.setting._Setting;
 import org.virtualbox_4_2.IMachine;
 import org.virtualbox_4_2.LockType;
 

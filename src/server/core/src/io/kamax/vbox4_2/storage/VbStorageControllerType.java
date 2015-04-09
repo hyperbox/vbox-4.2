@@ -20,7 +20,7 @@
 
 package io.kamax.vbox4_2.storage;
 
-import org.altherian.hboxd.hypervisor.storage._RawStorageControllerType;
+import io.kamax.hboxd.hypervisor.storage._RawStorageControllerType;
 
 public enum VbStorageControllerType implements _RawStorageControllerType {
 

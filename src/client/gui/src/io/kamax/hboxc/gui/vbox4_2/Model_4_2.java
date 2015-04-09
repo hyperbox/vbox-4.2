@@ -20,7 +20,7 @@
 
 package io.kamax.hboxc.gui.vbox4_2;
 
-import org.altherian.hboxc.front.gui.hypervisor._GlobalConfigureView;
+import io.kamax.hboxc.gui.hypervisor._GlobalConfigureView;
 import io.kamax.hboxc.gui.vbox.GenericModel;
 import io.kamax.vbox.VirtualBox;
 import java.util.List;

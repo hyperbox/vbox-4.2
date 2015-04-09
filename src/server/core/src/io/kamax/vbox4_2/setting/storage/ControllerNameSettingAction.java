@@ -20,9 +20,9 @@
 
 package io.kamax.vbox4_2.setting.storage;
 
-import org.altherian.hbox.constant.StorageControllerAttribute;
-import org.altherian.hbox.exception.HyperboxException;
-import org.altherian.setting._Setting;
+import io.kamax.hbox.constant.StorageControllerAttribute;
+import io.kamax.hbox.exception.HyperboxException;
+import io.kamax.setting._Setting;
 import io.kamax.vbox.settings.storage.ControllerNameSetting;
 import io.kamax.vbox4_2.setting._StorageControllerSettingAction;
 import org.virtualbox_4_2.IStorageController;

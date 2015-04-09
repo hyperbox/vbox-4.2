@@ -20,9 +20,9 @@
 
 package io.kamax.vbox4_2.setting.memory;
 
-import org.altherian.hbox.constant.MachineAttribute;
-import org.altherian.setting.BooleanSetting;
-import org.altherian.setting._Setting;
+import io.kamax.hbox.constant.MachineAttribute;
+import io.kamax.setting.BooleanSetting;
+import io.kamax.setting._Setting;
 import io.kamax.vbox.settings.memory.LargePagesSetting;
 import io.kamax.vbox4_2.setting._MachineSettingAction;
 import org.virtualbox_4_2.HWVirtExPropertyType;

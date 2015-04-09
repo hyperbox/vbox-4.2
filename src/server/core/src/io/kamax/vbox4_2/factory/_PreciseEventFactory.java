@@ -20,7 +20,7 @@
 
 package io.kamax.vbox4_2.factory;
 
-import org.altherian.hbox.event._Event;
+import io.kamax.hbox.event._Event;
 import org.virtualbox_4_2.IEvent;
 import org.virtualbox_4_2.VBoxEventType;
 

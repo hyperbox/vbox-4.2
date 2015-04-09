@@ -20,9 +20,9 @@
 
 package io.kamax.vbox4_2.setting.network;
 
-import org.altherian.hbox.constant.NetworkInterfaceAttribute;
-import org.altherian.setting.StringSetting;
-import org.altherian.setting._Setting;
+import io.kamax.hbox.constant.NetworkInterfaceAttribute;
+import io.kamax.setting.StringSetting;
+import io.kamax.setting._Setting;
 import io.kamax.vbox4_2.setting._NetworkInterfaceSettingAction;
 import org.virtualbox_4_2.INetworkAdapter;
 import org.virtualbox_4_2.LockType;

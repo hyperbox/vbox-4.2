@@ -20,10 +20,10 @@
 
 package io.kamax.vbox4_2.storage;
 
-import org.altherian.hboxd.hypervisor.storage._RawMedium;
-import org.altherian.hboxd.hypervisor.storage._RawMediumAttachment;
-import org.altherian.hboxd.hypervisor.storage._RawStorageController;
-import org.altherian.hboxd.hypervisor.vm._RawVM;
+import io.kamax.hboxd.hypervisor.storage._RawMedium;
+import io.kamax.hboxd.hypervisor.storage._RawMediumAttachment;
+import io.kamax.hboxd.hypervisor.storage._RawStorageController;
+import io.kamax.hboxd.hypervisor.vm._RawVM;
 import io.kamax.vbox4_2.vm.VBoxMachine;
 import org.virtualbox_4_2.IMediumAttachment;
 
