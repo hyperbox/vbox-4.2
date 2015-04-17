@@ -23,7 +23,7 @@ package io.kamax.vbox4_2;
 /**
  * This class is used to provide workarounds for various bugs or very-desirable features in the Virtualbox API.
  * 
- * @author noteirak
+ * @author max
  */
 public class InconsistencyUtils {
 

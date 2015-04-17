@@ -39,7 +39,7 @@ import org.virtualbox_4_2.VBoxException;
  * Recommended way to handle events is the pasive implementation, which required polling to get new events.<br/>
  * This service will keep polling, transform events and feed them into hyperbox.
  * 
- * @author noteirak
+ * @author max
  */
 public final class EventsManagementService extends SimpleLoopService {
 
