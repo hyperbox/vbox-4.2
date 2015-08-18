@@ -20,7 +20,6 @@
 
 package io.kamax.vbox4_2;
 
-import net.engio.mbassy.listener.Handler;
 import io.kamax.hbox.Configuration;
 import io.kamax.hbox.comm.io.MachineLogFileIO;
 import io.kamax.hbox.constant.EntityType;
@@ -74,6 +73,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import net.engio.mbassy.listener.Handler;
 import org.virtualbox_4_2.AccessMode;
 import org.virtualbox_4_2.CleanupMode;
 import org.virtualbox_4_2.DeviceType;

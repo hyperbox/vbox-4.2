@@ -25,7 +25,6 @@ import io.kamax.hboxd.hypervisor.Hypervisor;
 import io.kamax.tool.AxStrings;
 import io.kamax.tool.logging.Logger;
 import io.kamax.vbox.VirtualBox;
-import io.kamax.vbox4_2.VBoxHypervisor;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
