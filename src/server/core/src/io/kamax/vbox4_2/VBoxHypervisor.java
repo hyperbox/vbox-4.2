@@ -98,746 +98,746 @@ import org.virtualbox_4_2.VirtualBoxManager;
 
 public abstract class VBoxHypervisor implements _Hypervisor {
 
-   /**
-    * Waiting coefficient to use on ISession::getTimeRemaining() with Thread.sleep() while waiting for task in progress to finish.<br/>
-    * Virtualbox returns a waiting time in seconds, this coefficient allow to turn it into milliseconds and set a 'shorter' waiting time for a more
-    * reactive update.<br/>
-    * Default value waits half of the estimated time reported by Virtualbox.
-    */
-   private final int waitingCoef = 500;
+    /**
+     * Waiting coefficient to use on ISession::getTimeRemaining() with Thread.sleep() while waiting for task in progress to finish.<br/>
+     * Virtualbox returns a waiting time in seconds, this coefficient allow to turn it into milliseconds and set a 'shorter' waiting time for a more
+     * reactive update.<br/>
+     * Default value waits half of the estimated time reported by Virtualbox.
+     */
+    private final int waitingCoef = 500;
 
-   protected VirtualBoxManager vbMgr;
+    protected VirtualBoxManager vbMgr;
 
-   private VirtualboxHost host;
-   private _EventManager evMgr;
-   // TODO keep this register up-to-date
-   private Map<String, VirtualboxMedium> mediumRegister;
-   private _Service evMgrSvc;
+    private VirtualboxHost host;
+    private _EventManager evMgr;
+    // TODO keep this register up-to-date
+    private Map<String, VirtualboxMedium> mediumRegister;
+    private _Service evMgrSvc;
 
-   private List<_RawOsType> osTypeCache;
+    private List<_RawOsType> osTypeCache;
 
-   public VirtualBoxManager getMgr() {
-      return vbMgr;
-   }
+    public VirtualBoxManager getMgr() {
+        return vbMgr;
+    }
 
-   protected abstract VirtualBoxManager connect(String options);
+    protected abstract VirtualBoxManager connect(String options);
 
-   protected abstract void disconnect();
+    protected abstract void disconnect();
 
-   protected abstract ISession getSession();
+    protected abstract ISession getSession();
 
-   @Override
-   public String getId() {
-      return this.getClass().getAnnotation(Hypervisor.class).id();
-   }
+    @Override
+    public String getId() {
+        return this.getClass().getAnnotation(Hypervisor.class).id();
+    }
 
-   @Override
-   public String getTypeId() {
-      return this.getClass().getAnnotation(Hypervisor.class).typeId();
-   }
+    @Override
+    public String getTypeId() {
+        return this.getClass().getAnnotation(Hypervisor.class).typeId();
+    }
 
-   @Override
-   public String getVendor() {
-      return this.getClass().getAnnotation(Hypervisor.class).vendor();
-   }
+    @Override
+    public String getVendor() {
+        return this.getClass().getAnnotation(Hypervisor.class).vendor();
+    }
 
-   @Override
-   public String getProduct() {
-      return this.getClass().getAnnotation(Hypervisor.class).product();
-   }
+    @Override
+    public String getProduct() {
+        return this.getClass().getAnnotation(Hypervisor.class).product();
+    }
 
-   @Override
-   public void setEventManager(_EventManager evMgr) {
+    @Override
+    public void setEventManager(_EventManager evMgr) {
 
-      this.evMgr = evMgr;
-   }
+        this.evMgr = evMgr;
+    }
 
-   @Override
-   public void start(String options) throws HypervisorException {
+    @Override
+    public void start(String options) throws HypervisorException {
 
-      EventManager.register(this);
+        EventManager.register(this);
 
-      long start = System.currentTimeMillis();
+        long start = System.currentTimeMillis();
 
-      vbMgr = connect(options);
-      VBox.set(this);
+        vbMgr = connect(options);
+        VBox.set(this);
 
-      if (!vbMgr.getVBox().getAPIVersion().contentEquals("4_2")) {
-         throw new HypervisorException("Missmatch API Connector: Server is " + vbMgr.getVBox().getAPIVersion() + " but the connector handles 4_2");
-      }
+        if (!vbMgr.getVBox().getAPIVersion().contentEquals("4_2")) {
+            throw new HypervisorException("Missmatch API Connector: Server is " + vbMgr.getVBox().getAPIVersion() + " but the connector handles 4_2");
+        }
 
-      host = new VirtualboxHost(vbMgr.getVBox().getHost());
+        host = new VirtualboxHost(vbMgr.getVBox().getHost());
 
-      Mappings.load();
+        Mappings.load();
 
-      mediumRegister = new ConcurrentHashMap<String, VirtualboxMedium>();
-      if (Configuration.getSetting("virtualbox.ws.cache.medium.autoload", "0").contentEquals("1")) {
-         Logger.verbose("Loading media registry");
-         updateMediumRegistry();
-      }
+        mediumRegister = new ConcurrentHashMap<String, VirtualboxMedium>();
+        if (Configuration.getSetting("virtualbox.ws.cache.medium.autoload", "0").contentEquals("1")) {
+            Logger.verbose("Loading media registry");
+            updateMediumRegistry();
+        }
 
-      if (Configuration.getSetting("virtualbox.ws.cache.ostype.autoload", "0").contentEquals("1")) {
-         Logger.verbose("Loading OS Types");
-         buildOsTypeCache();
-      }
+        if (Configuration.getSetting("virtualbox.ws.cache.ostype.autoload", "0").contentEquals("1")) {
+            Logger.verbose("Loading OS Types");
+            buildOsTypeCache();
+        }
 
-      try {
-         if (evMgr != null) {
-            evMgrSvc = new EventsManagementService(evMgr);
-            evMgrSvc.startAndRun();
-         } else {
-            throw new HypervisorException("No Event Manager was set to handle events from Virtualbox");
-         }
-      } catch (ServiceException e) {
-         throw new HypervisorException("Unable to start the Event Manager Service : " + e.getMessage());
-      }
-
-      Logger.info("Connected in " + (System.currentTimeMillis() - start) + "ms to " + host.getHostname());
-      Logger.info("VB Version: " + vbMgr.getVBox().getVersion());
-      Logger.info("VB Revision: " + vbMgr.getVBox().getRevision());
-      Logger.info("Host OS: " + host.getOSName() + " " + host.getOSVersion());
-
-      EventManager.post(new HypervisorConnectedEvent(this));
-   }
-
-   @Override
-   public void stop() {
-
-      host = null;
-      mediumRegister = null;
-      osTypeCache = null;
-
-      if (evMgrSvc != null) {
-         if (!evMgrSvc.stopAndDie(15000)) {
-            Logger.warning("Error when trying to stop the Event Manager Service");
-         }
-         evMgrSvc = null;
-      }
-
-      disconnect();
-      VBox.unset();
-      if (vbMgr != null) {
-         vbMgr.cleanup();
-         vbMgr = null;
-      }
-
-      EventManager.post(new HypervisorDisconnectedEvent(this));
-      EventManager.unregister(this);
-   }
-
-   @Override
-   public boolean isRunning() {
-      try {
-         return !vbMgr.getVBox().getVersion().isEmpty();
-      } catch (Throwable t) {
-         return false;
-      }
-   }
-
-   private void updateMediumRegistry() {
-
-      mediumRegister.clear();
-      registerMediums(vbMgr.getVBox().getDVDImages());
-      registerMediums(vbMgr.getVBox().getHardDisks());
-      registerMediums(vbMgr.getVBox().getFloppyImages());
-   }
-
-   private void registerMediums(List<IMedium> mediums) {
-
-      for (IMedium medium : mediums) {
-         mediumRegister.put(medium.getId(), new VirtualboxMedium(medium));
-         registerMediums(medium.getChildren());
-      }
-   }
-
-   private IMedium getRawMedium(String uuid) {
-      updateMediumRegistry();
-      _RawMedium rawMed = mediumRegister.get(uuid);
-      return vbMgr.getVBox().openMedium(rawMed.getLocation(), DeviceType.fromValue(rawMed.getDeviceType()), AccessMode.ReadOnly, false);
-   }
-
-   private void buildOsTypeCache() {
-
-      List<_RawOsType> osTypes = new ArrayList<_RawOsType>();
-      for (IGuestOSType osType : vbMgr.getVBox().getGuestOSTypes()) {
-         osTypes.add(OsTypeFactory.get(osType));
-      }
-      osTypeCache = osTypes;
-   }
-
-   @Override
-   public _RawHost getHost() {
-      return host;
-   }
-
-   @Override
-   public _RawVM createMachine(String name, String osTypeId) {
-      return createMachine(null, name, osTypeId);
-   }
-
-   @Override
-   public _RawVM createMachine(String uuid, String name, String osTypeId) {
-
-      if (uuid != null) {
-         uuid = "UUID=" + uuid;
-      }
-      if (osTypeId == null) {
-         osTypeId = "Other";
-      }
-      try {
-         IMachine machine = vbMgr.getVBox().createMachine(null, name, null, osTypeId, uuid);
-         machine.saveSettings();
-         vbMgr.getVBox().registerMachine(machine);
-         uuid = machine.getId();
-         return new VBoxMachine(uuid);
-      } catch (VBoxException e) {
-         throw new HyperboxException(e.getMessage());
-      }
-   }
-
-   @Override
-   public List<_RawVM> listMachines() {
-      try {
-         List<IMachine> rawMachines = vbMgr.getVBox().getMachines();
-         List<_RawVM> machines = new ArrayList<_RawVM>();
-         for (IMachine rawMachine : rawMachines) {
-            machines.add(new VBoxMachine(rawMachine));
-         }
-         return machines;
-      } catch (VBoxException e) {
-         throw new HyperboxException(e.getMessage());
-      }
-   }
-
-   @Override
-   public _RawVM getMachine(String uuid) {
-      try {
-         return new VBoxMachine(vbMgr.getVBox().findMachine(uuid));
-      } catch (VBoxException e) {
-         throw new HyperboxException(e.getMessage());
-      }
-   }
-
-   @Override
-   public _RawMedium createHardDisk(String filePath, String format, Long logicalSize) {
-
-      // TODO find a way to know the smallest size for a given format, set to 2MB for now.
-      if (logicalSize < 2048000) {
-         logicalSize = 2048000l;
-      }
-
-      try {
-         // TODO check via ISytemProperties if the format is valid
-         IMedium med = vbMgr.getVBox().createHardDisk(format, filePath);
-         IProgress p = med.createBaseStorage(logicalSize, 0l);
-         p.waitForCompletion(-1);
-         if (p.getResultCode() != 0) {
-            throw new HypervisorException("Unable to create harddisk: " + p.getErrorInfo().getResultCode() + " | " + p.getErrorInfo().getText());
-         }
-         updateMediumRegistry();
-         return getMedium(filePath, DeviceType.HardDisk.toString());
-      } catch (VBoxException e) {
-         throw new HyperboxException(e.getMessage(), e);
-      }
-   }
-
-   @Override
-   public _RawMedium getMedium(String uuid) {
-      // TODO use events instead of rescanning the data if data is not found
-      if (!mediumRegister.containsKey(uuid)) {
-         updateMediumRegistry();
-      }
-      if (mediumRegister.containsKey(uuid)) {
-         return mediumRegister.get(uuid);
-      } else {
-         throw new HypervisorException("No medium found under UUID #" + uuid);
-      }
-   }
-
-   @Override
-   public _RawMedium getMedium(String filePath, String mediumType) {
-      // TODO check for mediumType validity
-      try {
-         IMedium medium = vbMgr.getVBox().openMedium(filePath, DeviceType.valueOf(mediumType), AccessMode.ReadOnly, false);
-         if (medium.refreshState().equals(MediumState.Inaccessible)) {
-            medium.close();
-            throw new HypervisorException("Unable to get " + filePath + " : " + medium.getLastAccessError());
-         }
-         return new VirtualboxMedium(medium);
-      } catch (VBoxException e) {
-         throw new HypervisorException(e);
-      }
-   }
-
-   @Override
-   public _RawMedium getMedium(String filePath, EntityType mediumType) {
-      return getMedium(filePath, mediumType.toString());
-   }
-
-   @Override
-   public List<String> listNicAdapterTypes() {
-      List<String> listInfo = new ArrayList<String>();
-      for (NetworkAdapterType adapterType : NetworkAdapterType.values()) {
-         if (!adapterType.equals(NetworkAdapterType.Null)) {
-            listInfo.add(adapterType.toString());
-         }
-      }
-      return listInfo;
-   }
-
-   @Override
-   public List<String> listNicAttachModes() {
-      List<String> listInfo = new ArrayList<String>();
-      for (NetworkAttachmentType attachType : NetworkAttachmentType.values()) {
-         listInfo.add(attachType.toString());
-      }
-      return listInfo;
-   }
-
-   @Override
-   public List<String> listNicAttachNames(String attachMode) {
-      List<String> listInfo = new ArrayList<String>();
-      NetworkAttachmentType type = NetworkAttachmentType.valueOf(attachMode);
-      switch (type) {
-         case Bridged:
-            for (IHostNetworkInterface nic : vbMgr.getVBox().getHost().getNetworkInterfaces()) {
-               if (nic.getInterfaceType().equals(HostNetworkInterfaceType.Bridged)) {
-                  listInfo.add(nic.getName());
-               }
+        try {
+            if (evMgr != null) {
+                evMgrSvc = new EventsManagementService(evMgr);
+                evMgrSvc.startAndRun();
+            } else {
+                throw new HypervisorException("No Event Manager was set to handle events from Virtualbox");
             }
-            break;
-         case Generic:
-            listInfo.addAll(vbMgr.getVBox().getGenericNetworkDrivers());
-            break;
-         case HostOnly:
-            for (IHostNetworkInterface nic : vbMgr.getVBox().getHost().getNetworkInterfaces()) {
-               if (nic.getInterfaceType().equals(HostNetworkInterfaceType.HostOnly)) {
-                  listInfo.add(nic.getName());
-               }
+        } catch (ServiceException e) {
+            throw new HypervisorException("Unable to start the Event Manager Service : " + e.getMessage());
+        }
+
+        Logger.info("Connected in " + (System.currentTimeMillis() - start) + "ms to " + host.getHostname());
+        Logger.info("VB Version: " + vbMgr.getVBox().getVersion());
+        Logger.info("VB Revision: " + vbMgr.getVBox().getRevision());
+        Logger.info("Host OS: " + host.getOSName() + " " + host.getOSVersion());
+
+        EventManager.post(new HypervisorConnectedEvent(this));
+    }
+
+    @Override
+    public void stop() {
+
+        host = null;
+        mediumRegister = null;
+        osTypeCache = null;
+
+        if (evMgrSvc != null) {
+            if (!evMgrSvc.stopAndDie(15000)) {
+                Logger.warning("Error when trying to stop the Event Manager Service");
             }
-            break;
-         case Internal:
-            listInfo.addAll(vbMgr.getVBox().getInternalNetworks());
-            break;
-         case NAT:
-            break;
-         case Null:
-            break;
-         default:
-            throw new HypervisorException(attachMode + " is not supported as an attachement mode");
-      }
-      return listInfo;
-   }
+            evMgrSvc = null;
+        }
 
-   @Override
-   public _RawStorageControllerType getStorageControllerType(String id) {
-      try {
-         // We validate that the type exist in Virtualbox
-         StorageBus.valueOf(id);
+        disconnect();
+        VBox.unset();
+        if (vbMgr != null) {
+            vbMgr.cleanup();
+            vbMgr = null;
+        }
 
-         return VbStorageControllerType.valueOf(id);
-      } catch (IllegalArgumentException e) {
-         throw new HypervisorException(id + " is not a supported Controller Type");
-      }
-   }
+        EventManager.post(new HypervisorDisconnectedEvent(this));
+        EventManager.unregister(this);
+    }
 
-   @Override
-   public List<_RawStorageControllerType> listStorageControllerType() {
-      // TODO improve so _Raw... has a concrete implementation class and use the enum to fetch the min/max values
-      // valueOf(id) should be used on VbStorageControllerType with the StorageBus.toString() as its ID.
-      // This way we ensure that every StorageBus has a corresponding value with data and none is missed.
-      // Reminder : must skip StorageBus.Null
-      //
+    @Override
+    public boolean isRunning() {
+        try {
+            return !vbMgr.getVBox().getVersion().isEmpty();
+        } catch (Throwable t) {
+            return false;
+        }
+    }
 
-      return Arrays.asList((_RawStorageControllerType[]) VbStorageControllerType.values());
-   }
+    private void updateMediumRegistry() {
 
-   @Override
-   public _RawStorageControllerSubType getStorageControllerSubType(String id) {
-      try {
-         // We validate that the type exist in VirtualBox
-         StorageControllerType.valueOf(id);
+        mediumRegister.clear();
+        registerMediums(vbMgr.getVBox().getDVDImages());
+        registerMediums(vbMgr.getVBox().getHardDisks());
+        registerMediums(vbMgr.getVBox().getFloppyImages());
+    }
 
-         return VbStorageControllerSubType.valueOf(id);
-      } catch (IllegalArgumentException e) {
-         throw new HypervisorException(id + " is not a supported Controller SubType");
-      }
+    private void registerMediums(List<IMedium> mediums) {
 
-   }
+        for (IMedium medium : mediums) {
+            mediumRegister.put(medium.getId(), new VirtualboxMedium(medium));
+            registerMediums(medium.getChildren());
+        }
+    }
 
-   @Override
-   public List<_RawStorageControllerSubType> listStorageControllerSubType(String type) {
-      try {
-         List<_RawStorageControllerSubType> subTypes = new ArrayList<_RawStorageControllerSubType>();
-         // TODO Must validate using the same logic than listStorageControllerType - use IVirtualbox::StorageControllerType.toString() as lookup ID, skipping Null
-         for (VbStorageControllerSubType subType : VbStorageControllerSubType.values()) {
-            if (subType.getParentType().contentEquals(type)) {
-               subTypes.add(subType);
+    private IMedium getRawMedium(String uuid) {
+        updateMediumRegistry();
+        _RawMedium rawMed = mediumRegister.get(uuid);
+        return vbMgr.getVBox().openMedium(rawMed.getLocation(), DeviceType.fromValue(rawMed.getDeviceType()), AccessMode.ReadOnly, false);
+    }
+
+    private void buildOsTypeCache() {
+
+        List<_RawOsType> osTypes = new ArrayList<_RawOsType>();
+        for (IGuestOSType osType : vbMgr.getVBox().getGuestOSTypes()) {
+            osTypes.add(OsTypeFactory.get(osType));
+        }
+        osTypeCache = osTypes;
+    }
+
+    @Override
+    public _RawHost getHost() {
+        return host;
+    }
+
+    @Override
+    public _RawVM createMachine(String name, String osTypeId) {
+        return createMachine(null, name, osTypeId);
+    }
+
+    @Override
+    public _RawVM createMachine(String uuid, String name, String osTypeId) {
+
+        if (uuid != null) {
+            uuid = "UUID=" + uuid;
+        }
+        if (osTypeId == null) {
+            osTypeId = "Other";
+        }
+        try {
+            IMachine machine = vbMgr.getVBox().createMachine(null, name, null, osTypeId, uuid);
+            machine.saveSettings();
+            vbMgr.getVBox().registerMachine(machine);
+            uuid = machine.getId();
+            return new VBoxMachine(uuid);
+        } catch (VBoxException e) {
+            throw new HyperboxException(e.getMessage());
+        }
+    }
+
+    @Override
+    public List<_RawVM> listMachines() {
+        try {
+            List<IMachine> rawMachines = vbMgr.getVBox().getMachines();
+            List<_RawVM> machines = new ArrayList<_RawVM>();
+            for (IMachine rawMachine : rawMachines) {
+                machines.add(new VBoxMachine(rawMachine));
             }
-         }
-         return subTypes;
-      } catch (IllegalArgumentException e) {
-         throw new HypervisorException(type + " is not a supported Controller Type");
-      }
-   }
+            return machines;
+        } catch (VBoxException e) {
+            throw new HyperboxException(e.getMessage());
+        }
+    }
 
-   @Override
-   public List<_RawOsType> listOsTypes() {
-      if ((osTypeCache == null) || osTypeCache.isEmpty()) {
-         buildOsTypeCache();
-      }
+    @Override
+    public _RawVM getMachine(String uuid) {
+        try {
+            return new VBoxMachine(vbMgr.getVBox().findMachine(uuid));
+        } catch (VBoxException e) {
+            throw new HyperboxException(e.getMessage());
+        }
+    }
 
-      return new ArrayList<_RawOsType>(osTypeCache);
-   }
+    @Override
+    public _RawMedium createHardDisk(String filePath, String format, Long logicalSize) {
 
-   @Override
-   public void deleteMachine(String uuid) {
-      // TODO improve with multi-step exception handling, as well as a separate method for HDD deletion
-      VBoxSessionManager.get().unlock(uuid);
-      IMachine machine = vbMgr.getVBox().findMachine(uuid);
+        // TODO find a way to know the smallest size for a given format, set to 2MB for now.
+        if (logicalSize < 2048000) {
+            logicalSize = 2048000l;
+        }
 
-      try {
-         List<IMedium> hdds = machine.unregister(CleanupMode.DetachAllReturnHardDisksOnly);
-         IProgress p = machine.delete(hdds);
-         while (!p.getCompleted() || p.getCanceled()) {
-            try {
-               Thread.sleep(Math.abs(p.getTimeRemaining()) * waitingCoef);
-            } catch (InterruptedException e) {
-               Logger.exception(e);
+        try {
+            // TODO check via ISytemProperties if the format is valid
+            IMedium med = vbMgr.getVBox().createHardDisk(format, filePath);
+            IProgress p = med.createBaseStorage(logicalSize, 0l);
+            p.waitForCompletion(-1);
+            if (p.getResultCode() != 0) {
+                throw new HypervisorException("Unable to create harddisk: " + p.getErrorInfo().getResultCode() + " | " + p.getErrorInfo().getText());
             }
-         }
-         Logger.debug("VBox API Return code: " + p.getResultCode());
-         if (p.getResultCode() != 0) {
-            throw new MachineException(p.getErrorInfo().getText());
-         }
-      } catch (VBoxException e) {
-         throw new HypervisorException("Error while deleting machine", e);
-      }
-   }
+            updateMediumRegistry();
+            return getMedium(filePath, DeviceType.HardDisk.toString());
+        } catch (VBoxException e) {
+            throw new HyperboxException(e.getMessage(), e);
+        }
+    }
 
-   @Override
-   public Machine getMachineSettings(String osTypeId) {
-      IGuestOSType rawOsType = vbMgr.getVBox().getGuestOSType(osTypeId);
-      return OsTypeFactory.getSettings(rawOsType);
-   }
+    @Override
+    public _RawMedium getMedium(String uuid) {
+        // TODO use events instead of rescanning the data if data is not found
+        if (!mediumRegister.containsKey(uuid)) {
+            updateMediumRegistry();
+        }
+        if (mediumRegister.containsKey(uuid)) {
+            return mediumRegister.get(uuid);
+        } else {
+            throw new HypervisorException("No medium found under UUID #" + uuid);
+        }
+    }
 
-   @Override
-   public _RawOsType getOsType(String id) {
-      IGuestOSType rawOsType = vbMgr.getVBox().getGuestOSType(id);
-      return OsTypeFactory.get(rawOsType);
-   }
-
-   @Override
-   public List<String> listDeviceTypes() {
-      List<String> listDeviceTypes = new ArrayList<String>();
-      for (DeviceType dt : DeviceType.values()) {
-         listDeviceTypes.add(dt.toString());
-      }
-      return listDeviceTypes;
-   }
-
-   @Override
-   public _RawVM registerMachine(String path) {
-
-      IMachine machine = vbMgr.getVBox().openMachine(path);
-      vbMgr.getVBox().registerMachine(machine);
-      return getMachine(machine.getId());
-   }
-
-   @Override
-   public void unregisterMachine(String uuid) {
-
-      VBoxSessionManager.get().unlock(uuid);
-      IMachine machine = vbMgr.getVBox().findMachine(uuid);
-      machine.unregister(CleanupMode.DetachAllReturnNone);
-   }
-
-   @Override
-   public List<String> listKeyboardModes() {
-      List<String> listKeyboardModes = new ArrayList<String>();
-      for (KeyboardHIDType type : KeyboardHIDType.values()) {
-         if (Mappings.get(type) != null) {
-            listKeyboardModes.add(Mappings.get(type).toString());
-         }
-      }
-      return listKeyboardModes;
-   }
-
-   @Override
-   public List<String> listMouseModes() {
-      List<String> listMouseModes = new ArrayList<String>();
-      for (PointingHIDType type : PointingHIDType.values()) {
-         if (Mappings.get(type) != null) {
-            listMouseModes.add(Mappings.get(type).toString());
-         }
-      }
-      return listMouseModes;
-   }
-
-   @Override
-   public List<_RawMedium> listMediums() {
-      updateMediumRegistry();
-
-      return new ArrayList<_RawMedium>(mediumRegister.values());
-   }
-
-   @Override
-   public void deleteMedium(String uuid) {
-
-      try {
-         IMedium medium = getRawMedium(uuid);
-         IProgress p = medium.deleteStorage();
-         p.waitForCompletion(-1);
-         if (p.getResultCode() != 0) {
-            throw new HypervisorException(p.getErrorInfo().getText());
-         } else {
-            mediumRegister.remove(uuid);
-         }
-      } catch (VBoxException e) {
-         throw new HyperboxException(e.getMessage(), e);
-      }
-   }
-
-   @Override
-   public List<String> listHardDiskFormats() {
-      List<String> formats = new ArrayList<String>();
-      for (IMediumFormat format : vbMgr.getVBox().getSystemProperties().getMediumFormats()) {
-         formats.add(format.getId());
-      }
-      return formats;
-   }
-
-   @Override
-   public _RawVM createMachine(String uuid, String name, String osTypeId, boolean applyTemplate) {
-
-      throw new FeatureNotImplementedException();
-   }
-
-   @Override
-   public String getVersion() {
-      return vbMgr.getVBox().getVersion();
-   }
-
-   @Override
-   public String getRevision() {
-      return vbMgr.getVBox().getRevision().toString();
-   }
-
-   @Override
-   public _RawVM createMachine(String name) {
-      return createMachine(name, null);
-   }
-
-   @Override
-   public _RawMedium getToolsMedium() {
-      String path = vbMgr.getVBox().getSystemProperties().getDefaultAdditionsISO();
-      if (AxStrings.isEmpty(path)) {
-         return null;
-      } else {
-         return getMedium(path, EntityType.DVD);
-      }
-   }
-
-   @Override
-   public boolean hasToolsMedium() {
-      return !AxStrings.isEmpty(vbMgr.getVBox().getSystemProperties().getDefaultAdditionsISO());
-   }
-
-   @Override
-   public void configure(List<_Setting> listIo) {
-      for (_Setting setting : listIo) {
-         if (setting.getName().equalsIgnoreCase("vbox.global.machineFolder")) {
-            vbMgr.getVBox().getSystemProperties().setDefaultMachineFolder(setting.getString());
-         }
-         if (setting.getName().equalsIgnoreCase("vbox.global.consoleModule")) {
-            vbMgr.getVBox().getSystemProperties().setDefaultVRDEExtPack(setting.getString());
-         }
-      }
-   }
-
-   @Override
-   public List<_Setting> getSettings() {
-      List<_Setting> settings = new ArrayList<_Setting>();
-      settings.add(new StringSetting("vbox.global.machineFolder", vbMgr.getVBox().getSystemProperties().getDefaultMachineFolder()));
-      settings.add(new StringSetting("vbox.global.consoleModule", vbMgr.getVBox().getSystemProperties().getDefaultVRDEExtPack()));
-      return settings;
-   }
-
-   @Handler
-   public void putServiceStatusEvent(ServiceStateEvent ev) {
-
-      if (ev.getService().equals(evMgrSvc) && ev.getState().equals(ServiceState.Stopped)) {
-         stop();
-      }
-   }
-
-   @Override
-   public List<_NetMode> listNetworkModes() {
-      return new ArrayList<_NetMode>(Arrays.asList(VBoxNetMode.values()));
-   }
-
-   @Override
-   public _NetMode getNetworkMode(String id) {
-      return VBoxNetMode.getEnum(id);
-   }
-
-   @Override
-   public List<_NetAdaptor> listAdaptors(String modeId) {
-      List<_NetAdaptor> listInfo = new ArrayList<_NetAdaptor>();
-      VBoxNetMode type = VBoxNetMode.getEnum(modeId);
-      switch (type) {
-         case Bridged:
-            for (IHostNetworkInterface nic : vbMgr.getVBox().getHost().getNetworkInterfaces()) {
-               if (nic.getInterfaceType().equals(HostNetworkInterfaceType.Bridged)) {
-                  listInfo.add(new VBoxBridgedAdaptor(nic));
-               }
+    @Override
+    public _RawMedium getMedium(String filePath, String mediumType) {
+        // TODO check for mediumType validity
+        try {
+            IMedium medium = vbMgr.getVBox().openMedium(filePath, DeviceType.valueOf(mediumType), AccessMode.ReadOnly, false);
+            if (medium.refreshState().equals(MediumState.Inaccessible)) {
+                medium.close();
+                throw new HypervisorException("Unable to get " + filePath + " : " + medium.getLastAccessError());
             }
-            break;
-         case Generic:
-            for (String driver : vbMgr.getVBox().getGenericNetworkDrivers()) {
-               listInfo.add(new VBoxAdaptor(driver, driver, type, true));
+            return new VirtualboxMedium(medium);
+        } catch (VBoxException e) {
+            throw new HypervisorException(e);
+        }
+    }
+
+    @Override
+    public _RawMedium getMedium(String filePath, EntityType mediumType) {
+        return getMedium(filePath, mediumType.toString());
+    }
+
+    @Override
+    public List<String> listNicAdapterTypes() {
+        List<String> listInfo = new ArrayList<String>();
+        for (NetworkAdapterType adapterType : NetworkAdapterType.values()) {
+            if (!adapterType.equals(NetworkAdapterType.Null)) {
+                listInfo.add(adapterType.toString());
             }
-            break;
-         case HostOnly:
-            for (IHostNetworkInterface nic : vbMgr.getVBox().getHost().getNetworkInterfaces()) {
-               if (nic.getInterfaceType().equals(HostNetworkInterfaceType.HostOnly)) {
-                  listInfo.add(new VBoxHostOnlyAdaptor(nic));
-               }
+        }
+        return listInfo;
+    }
+
+    @Override
+    public List<String> listNicAttachModes() {
+        List<String> listInfo = new ArrayList<String>();
+        for (NetworkAttachmentType attachType : NetworkAttachmentType.values()) {
+            listInfo.add(attachType.toString());
+        }
+        return listInfo;
+    }
+
+    @Override
+    public List<String> listNicAttachNames(String attachMode) {
+        List<String> listInfo = new ArrayList<String>();
+        NetworkAttachmentType type = NetworkAttachmentType.valueOf(attachMode);
+        switch (type) {
+            case Bridged:
+                for (IHostNetworkInterface nic : vbMgr.getVBox().getHost().getNetworkInterfaces()) {
+                    if (nic.getInterfaceType().equals(HostNetworkInterfaceType.Bridged)) {
+                        listInfo.add(nic.getName());
+                    }
+                }
+                break;
+            case Generic:
+                listInfo.addAll(vbMgr.getVBox().getGenericNetworkDrivers());
+                break;
+            case HostOnly:
+                for (IHostNetworkInterface nic : vbMgr.getVBox().getHost().getNetworkInterfaces()) {
+                    if (nic.getInterfaceType().equals(HostNetworkInterfaceType.HostOnly)) {
+                        listInfo.add(nic.getName());
+                    }
+                }
+                break;
+            case Internal:
+                listInfo.addAll(vbMgr.getVBox().getInternalNetworks());
+                break;
+            case NAT:
+                break;
+            case Null:
+                break;
+            default:
+                throw new HypervisorException(attachMode + " is not supported as an attachement mode");
+        }
+        return listInfo;
+    }
+
+    @Override
+    public _RawStorageControllerType getStorageControllerType(String id) {
+        try {
+            // We validate that the type exist in Virtualbox
+            StorageBus.valueOf(id);
+
+            return VbStorageControllerType.valueOf(id);
+        } catch (IllegalArgumentException e) {
+            throw new HypervisorException(id + " is not a supported Controller Type");
+        }
+    }
+
+    @Override
+    public List<_RawStorageControllerType> listStorageControllerType() {
+        // TODO improve so _Raw... has a concrete implementation class and use the enum to fetch the min/max values
+        // valueOf(id) should be used on VbStorageControllerType with the StorageBus.toString() as its ID.
+        // This way we ensure that every StorageBus has a corresponding value with data and none is missed.
+        // Reminder : must skip StorageBus.Null
+        //
+
+        return Arrays.asList((_RawStorageControllerType[]) VbStorageControllerType.values());
+    }
+
+    @Override
+    public _RawStorageControllerSubType getStorageControllerSubType(String id) {
+        try {
+            // We validate that the type exist in VirtualBox
+            StorageControllerType.valueOf(id);
+
+            return VbStorageControllerSubType.valueOf(id);
+        } catch (IllegalArgumentException e) {
+            throw new HypervisorException(id + " is not a supported Controller SubType");
+        }
+
+    }
+
+    @Override
+    public List<_RawStorageControllerSubType> listStorageControllerSubType(String type) {
+        try {
+            List<_RawStorageControllerSubType> subTypes = new ArrayList<_RawStorageControllerSubType>();
+            // TODO Must validate using the same logic than listStorageControllerType - use IVirtualbox::StorageControllerType.toString() as lookup ID, skipping Null
+            for (VbStorageControllerSubType subType : VbStorageControllerSubType.values()) {
+                if (subType.getParentType().contentEquals(type)) {
+                    subTypes.add(subType);
+                }
             }
-            break;
-         case Internal:
-            for (String internalNet : vbMgr.getVBox().getInternalNetworks()) {
-               listInfo.add(new VBoxAdaptor(internalNet, internalNet, type, true));
+            return subTypes;
+        } catch (IllegalArgumentException e) {
+            throw new HypervisorException(type + " is not a supported Controller Type");
+        }
+    }
+
+    @Override
+    public List<_RawOsType> listOsTypes() {
+        if ((osTypeCache == null) || osTypeCache.isEmpty()) {
+            buildOsTypeCache();
+        }
+
+        return new ArrayList<_RawOsType>(osTypeCache);
+    }
+
+    @Override
+    public void deleteMachine(String uuid) {
+        // TODO improve with multi-step exception handling, as well as a separate method for HDD deletion
+        VBoxSessionManager.get().unlock(uuid);
+        IMachine machine = vbMgr.getVBox().findMachine(uuid);
+
+        try {
+            List<IMedium> hdds = machine.unregister(CleanupMode.DetachAllReturnHardDisksOnly);
+            IProgress p = machine.delete(hdds);
+            while (!p.getCompleted() || p.getCanceled()) {
+                try {
+                    Thread.sleep(Math.abs(p.getTimeRemaining()) * waitingCoef);
+                } catch (InterruptedException e) {
+                    Logger.exception(e);
+                }
             }
-            break;
-         case NAT:
-            break;
-         default:
-            Logger.warning("Got a valid but non supported net mode: " + modeId);
-            throw new InvalidNetworkModeException(modeId);
-      }
-      return listInfo;
-   }
-
-   @Override
-   public List<_NetAdaptor> listAdaptors() {
-      List<_NetAdaptor> listInfo = new ArrayList<_NetAdaptor>();
-      for (VBoxNetMode mode : VBoxNetMode.values()) {
-         listInfo.addAll(listAdaptors(mode.getId()));
-      }
-      return listInfo;
-   }
-
-   @Override
-   public _NetAdaptor createAdaptor(String modeId, String name) throws InvalidNetworkModeException {
-      VBoxNetMode mode = VBoxNetMode.getEnum(modeId);
-      switch (mode) {
-         case HostOnly:
-            return createHostOnlyAdaptor(name);
-         default:
-            throw new InvalidNetworkModeException(modeId, modeId + " does not support adaptor creation");
-      }
-   }
-
-   public _NetAdaptor createHostOnlyAdaptor(String name) {
-      Holder<IHostNetworkInterface> holder = new Holder<IHostNetworkInterface>();
-      IProgress p = VBox.get().getHost().createHostOnlyNetworkInterface(holder);
-      p.waitForCompletion(-1);
-      if (p.getResultCode() != 0) {
-         throw new HyperboxException("Error creating host only interface: " + p.getErrorInfo().getText());
-      }
-      _NetAdaptor adaptor = getNetAdaptor(VBoxNetMode.HostOnly.getId(), holder.value.getId());
-      EventManager.post(new NetAdaptorAddedEvent(this, adaptor.getMode().getId(), adaptor.getId()));
-      return adaptor;
-   }
-
-   @Override
-   public void removeAdaptor(String modeId, String adaptorId) throws InvalidNetworkModeException {
-      VBoxNetMode mode = VBoxNetMode.getEnum(modeId);
-      switch (mode) {
-         case HostOnly:
-            removeHostOnlyAdaptor(adaptorId);
-         default:
-            throw new InvalidNetworkModeException(modeId, modeId + " does not support adaptor removal");
-      }
-   }
-
-   public void removeHostOnlyAdaptor(String adaptorId) {
-      IProgress p = VBox.get().getHost().removeHostOnlyNetworkInterface(adaptorId);
-      p.waitForCompletion(-1);
-      if (p.getResultCode() != 0) {
-         throw new HyperboxException("Error removing host only interface: " + p.getErrorInfo().getText());
-      } else {
-         EventManager.post(new NetAdaptorRemovedEvent(this, VBoxNetMode.HostOnly.getId(), adaptorId));
-      }
-   }
-
-   @Override
-   public _NetAdaptor getNetAdaptor(String modeId, String adaptorId) throws NetworkAdaptorNotFoundException {
-      VBoxNetMode type = VBoxNetMode.getEnum(modeId);
-      IHostNetworkInterface nic = null;
-      switch (type) {
-         case Bridged:
-            nic = vbMgr.getVBox().getHost().findHostNetworkInterfaceById(adaptorId);
-            if (!nic.getInterfaceType().equals(HostNetworkInterfaceType.Bridged)) {
-               throw new HyperboxException("Adaptor of type " + type + " with ID " + adaptorId + " was not found");
+            Logger.debug("VBox API Return code: " + p.getResultCode());
+            if (p.getResultCode() != 0) {
+                throw new MachineException(p.getErrorInfo().getText());
             }
-            return new VBoxBridgedAdaptor(nic);
-         case Generic:
-            for (String driver : vbMgr.getVBox().getGenericNetworkDrivers()) {
-               if (driver.equalsIgnoreCase(adaptorId)) {
-                  return new VBoxAdaptor(driver, driver, type, true);
-               }
+        } catch (VBoxException e) {
+            throw new HypervisorException("Error while deleting machine", e);
+        }
+    }
+
+    @Override
+    public Machine getMachineSettings(String osTypeId) {
+        IGuestOSType rawOsType = vbMgr.getVBox().getGuestOSType(osTypeId);
+        return OsTypeFactory.getSettings(rawOsType);
+    }
+
+    @Override
+    public _RawOsType getOsType(String id) {
+        IGuestOSType rawOsType = vbMgr.getVBox().getGuestOSType(id);
+        return OsTypeFactory.get(rawOsType);
+    }
+
+    @Override
+    public List<String> listDeviceTypes() {
+        List<String> listDeviceTypes = new ArrayList<String>();
+        for (DeviceType dt : DeviceType.values()) {
+            listDeviceTypes.add(dt.toString());
+        }
+        return listDeviceTypes;
+    }
+
+    @Override
+    public _RawVM registerMachine(String path) {
+
+        IMachine machine = vbMgr.getVBox().openMachine(path);
+        vbMgr.getVBox().registerMachine(machine);
+        return getMachine(machine.getId());
+    }
+
+    @Override
+    public void unregisterMachine(String uuid) {
+
+        VBoxSessionManager.get().unlock(uuid);
+        IMachine machine = vbMgr.getVBox().findMachine(uuid);
+        machine.unregister(CleanupMode.DetachAllReturnNone);
+    }
+
+    @Override
+    public List<String> listKeyboardModes() {
+        List<String> listKeyboardModes = new ArrayList<String>();
+        for (KeyboardHIDType type : KeyboardHIDType.values()) {
+            if (Mappings.get(type) != null) {
+                listKeyboardModes.add(Mappings.get(type).toString());
             }
-            throw new HyperboxException("Adaptor of type " + type + " with ID " + adaptorId + " was not found");
-         case HostOnly:
-            nic = vbMgr.getVBox().getHost().findHostNetworkInterfaceById(adaptorId);
-            if (!nic.getInterfaceType().equals(HostNetworkInterfaceType.HostOnly)) {
-               throw new HyperboxException("Adaptor of type " + type + " with ID " + adaptorId + " was not found");
+        }
+        return listKeyboardModes;
+    }
+
+    @Override
+    public List<String> listMouseModes() {
+        List<String> listMouseModes = new ArrayList<String>();
+        for (PointingHIDType type : PointingHIDType.values()) {
+            if (Mappings.get(type) != null) {
+                listMouseModes.add(Mappings.get(type).toString());
             }
-            return new VBoxHostOnlyAdaptor(nic);
-         case Internal:
-            for (String internalNet : vbMgr.getVBox().getInternalNetworks()) {
-               if (internalNet.equalsIgnoreCase(adaptorId)) {
-                  return new VBoxAdaptor(internalNet, internalNet, type, true);
-               }
+        }
+        return listMouseModes;
+    }
+
+    @Override
+    public List<_RawMedium> listMediums() {
+        updateMediumRegistry();
+
+        return new ArrayList<_RawMedium>(mediumRegister.values());
+    }
+
+    @Override
+    public void deleteMedium(String uuid) {
+
+        try {
+            IMedium medium = getRawMedium(uuid);
+            IProgress p = medium.deleteStorage();
+            p.waitForCompletion(-1);
+            if (p.getResultCode() != 0) {
+                throw new HypervisorException(p.getErrorInfo().getText());
+            } else {
+                mediumRegister.remove(uuid);
             }
-            throw new HyperboxException("Adaptor of type " + type + " with ID " + adaptorId + " was not found");
-         case NAT:
-            throw new InvalidNetworkModeException(modeId, modeId + " does not support network adaptor");
-         default:
-            Logger.warning("Got a valid but non supported net mode: " + modeId);
-            throw new InvalidNetworkModeException(modeId);
-      }
+        } catch (VBoxException e) {
+            throw new HyperboxException(e.getMessage(), e);
+        }
+    }
 
-   }
+    @Override
+    public List<String> listHardDiskFormats() {
+        List<String> formats = new ArrayList<String>();
+        for (IMediumFormat format : vbMgr.getVBox().getSystemProperties().getMediumFormats()) {
+            formats.add(format.getId());
+        }
+        return formats;
+    }
 
-   @Override
-   public List<String> getLogFileList(String vmId) {
-      List<String> ret = new ArrayList<String>();
-      long i = 0;
-      while (!vbMgr.getVBox().findMachine(vmId).queryLogFilename(i).isEmpty()) {
-         ret.add(vbMgr.getVBox().findMachine(vmId).queryLogFilename(i));
-         i++;
-      }
+    @Override
+    public _RawVM createMachine(String uuid, String name, String osTypeId, boolean applyTemplate) {
 
-      return ret;
-   }
+        throw new FeatureNotImplementedException();
+    }
 
-   //FIXME check with vbox devs
-   @Override
-   public _MachineLogFile getLogFile(String vmId, long logId) {
-      byte[] ret = null;
-      StringBuilder log = new StringBuilder();
-      long i = 0;
-      do {
-         ret = vbMgr.getVBox().findMachine(vmId).readLog(logId, i, 65536L);
-         log.append(new String(ret));
-         i = i + 65536;
-      } while (ret.length > 0);
-      List<String> loglist = Arrays.asList(log.toString().split(System.getProperty("line.separator")));
-      _MachineLogFile logObj = new MachineLogFileIO(vmId, vbMgr.getVBox().findMachine(vmId).queryLogFilename(logId), loglist);
-      return logObj;
-   }
+    @Override
+    public String getVersion() {
+        return vbMgr.getVBox().getVersion();
+    }
+
+    @Override
+    public String getRevision() {
+        return vbMgr.getVBox().getRevision().toString();
+    }
+
+    @Override
+    public _RawVM createMachine(String name) {
+        return createMachine(name, null);
+    }
+
+    @Override
+    public _RawMedium getToolsMedium() {
+        String path = vbMgr.getVBox().getSystemProperties().getDefaultAdditionsISO();
+        if (AxStrings.isEmpty(path)) {
+            return null;
+        } else {
+            return getMedium(path, EntityType.DVD);
+        }
+    }
+
+    @Override
+    public boolean hasToolsMedium() {
+        return !AxStrings.isEmpty(vbMgr.getVBox().getSystemProperties().getDefaultAdditionsISO());
+    }
+
+    @Override
+    public void configure(List<_Setting> listIo) {
+        for (_Setting setting : listIo) {
+            if (setting.getName().equalsIgnoreCase("vbox.global.machineFolder")) {
+                vbMgr.getVBox().getSystemProperties().setDefaultMachineFolder(setting.getString());
+            }
+            if (setting.getName().equalsIgnoreCase("vbox.global.consoleModule")) {
+                vbMgr.getVBox().getSystemProperties().setDefaultVRDEExtPack(setting.getString());
+            }
+        }
+    }
+
+    @Override
+    public List<_Setting> getSettings() {
+        List<_Setting> settings = new ArrayList<_Setting>();
+        settings.add(new StringSetting("vbox.global.machineFolder", vbMgr.getVBox().getSystemProperties().getDefaultMachineFolder()));
+        settings.add(new StringSetting("vbox.global.consoleModule", vbMgr.getVBox().getSystemProperties().getDefaultVRDEExtPack()));
+        return settings;
+    }
+
+    @Handler
+    public void putServiceStatusEvent(ServiceStateEvent ev) {
+
+        if (ev.getService().equals(evMgrSvc) && ev.getState().equals(ServiceState.Stopped)) {
+            stop();
+        }
+    }
+
+    @Override
+    public List<_NetMode> listNetworkModes() {
+        return new ArrayList<_NetMode>(Arrays.asList(VBoxNetMode.values()));
+    }
+
+    @Override
+    public _NetMode getNetworkMode(String id) {
+        return VBoxNetMode.getEnum(id);
+    }
+
+    @Override
+    public List<_NetAdaptor> listAdaptors(String modeId) {
+        List<_NetAdaptor> listInfo = new ArrayList<_NetAdaptor>();
+        VBoxNetMode type = VBoxNetMode.getEnum(modeId);
+        switch (type) {
+            case Bridged:
+                for (IHostNetworkInterface nic : vbMgr.getVBox().getHost().getNetworkInterfaces()) {
+                    if (nic.getInterfaceType().equals(HostNetworkInterfaceType.Bridged)) {
+                        listInfo.add(new VBoxBridgedAdaptor(nic));
+                    }
+                }
+                break;
+            case Generic:
+                for (String driver : vbMgr.getVBox().getGenericNetworkDrivers()) {
+                    listInfo.add(new VBoxAdaptor(driver, driver, type, true));
+                }
+                break;
+            case HostOnly:
+                for (IHostNetworkInterface nic : vbMgr.getVBox().getHost().getNetworkInterfaces()) {
+                    if (nic.getInterfaceType().equals(HostNetworkInterfaceType.HostOnly)) {
+                        listInfo.add(new VBoxHostOnlyAdaptor(nic));
+                    }
+                }
+                break;
+            case Internal:
+                for (String internalNet : vbMgr.getVBox().getInternalNetworks()) {
+                    listInfo.add(new VBoxAdaptor(internalNet, internalNet, type, true));
+                }
+                break;
+            case NAT:
+                break;
+            default:
+                Logger.warning("Got a valid but non supported net mode: " + modeId);
+                throw new InvalidNetworkModeException(modeId);
+        }
+        return listInfo;
+    }
+
+    @Override
+    public List<_NetAdaptor> listAdaptors() {
+        List<_NetAdaptor> listInfo = new ArrayList<_NetAdaptor>();
+        for (VBoxNetMode mode : VBoxNetMode.values()) {
+            listInfo.addAll(listAdaptors(mode.getId()));
+        }
+        return listInfo;
+    }
+
+    @Override
+    public _NetAdaptor createAdaptor(String modeId, String name) throws InvalidNetworkModeException {
+        VBoxNetMode mode = VBoxNetMode.getEnum(modeId);
+        switch (mode) {
+            case HostOnly:
+                return createHostOnlyAdaptor(name);
+            default:
+                throw new InvalidNetworkModeException(modeId, modeId + " does not support adaptor creation");
+        }
+    }
+
+    public _NetAdaptor createHostOnlyAdaptor(String name) {
+        Holder<IHostNetworkInterface> holder = new Holder<IHostNetworkInterface>();
+        IProgress p = VBox.get().getHost().createHostOnlyNetworkInterface(holder);
+        p.waitForCompletion(-1);
+        if (p.getResultCode() != 0) {
+            throw new HyperboxException("Error creating host only interface: " + p.getErrorInfo().getText());
+        }
+        _NetAdaptor adaptor = getNetAdaptor(VBoxNetMode.HostOnly.getId(), holder.value.getId());
+        EventManager.post(new NetAdaptorAddedEvent(this, adaptor.getMode().getId(), adaptor.getId()));
+        return adaptor;
+    }
+
+    @Override
+    public void removeAdaptor(String modeId, String adaptorId) throws InvalidNetworkModeException {
+        VBoxNetMode mode = VBoxNetMode.getEnum(modeId);
+        switch (mode) {
+            case HostOnly:
+                removeHostOnlyAdaptor(adaptorId);
+            default:
+                throw new InvalidNetworkModeException(modeId, modeId + " does not support adaptor removal");
+        }
+    }
+
+    public void removeHostOnlyAdaptor(String adaptorId) {
+        IProgress p = VBox.get().getHost().removeHostOnlyNetworkInterface(adaptorId);
+        p.waitForCompletion(-1);
+        if (p.getResultCode() != 0) {
+            throw new HyperboxException("Error removing host only interface: " + p.getErrorInfo().getText());
+        } else {
+            EventManager.post(new NetAdaptorRemovedEvent(this, VBoxNetMode.HostOnly.getId(), adaptorId));
+        }
+    }
+
+    @Override
+    public _NetAdaptor getNetAdaptor(String modeId, String adaptorId) throws NetworkAdaptorNotFoundException {
+        VBoxNetMode type = VBoxNetMode.getEnum(modeId);
+        IHostNetworkInterface nic = null;
+        switch (type) {
+            case Bridged:
+                nic = vbMgr.getVBox().getHost().findHostNetworkInterfaceById(adaptorId);
+                if (!nic.getInterfaceType().equals(HostNetworkInterfaceType.Bridged)) {
+                    throw new HyperboxException("Adaptor of type " + type + " with ID " + adaptorId + " was not found");
+                }
+                return new VBoxBridgedAdaptor(nic);
+            case Generic:
+                for (String driver : vbMgr.getVBox().getGenericNetworkDrivers()) {
+                    if (driver.equalsIgnoreCase(adaptorId)) {
+                        return new VBoxAdaptor(driver, driver, type, true);
+                    }
+                }
+                throw new HyperboxException("Adaptor of type " + type + " with ID " + adaptorId + " was not found");
+            case HostOnly:
+                nic = vbMgr.getVBox().getHost().findHostNetworkInterfaceById(adaptorId);
+                if (!nic.getInterfaceType().equals(HostNetworkInterfaceType.HostOnly)) {
+                    throw new HyperboxException("Adaptor of type " + type + " with ID " + adaptorId + " was not found");
+                }
+                return new VBoxHostOnlyAdaptor(nic);
+            case Internal:
+                for (String internalNet : vbMgr.getVBox().getInternalNetworks()) {
+                    if (internalNet.equalsIgnoreCase(adaptorId)) {
+                        return new VBoxAdaptor(internalNet, internalNet, type, true);
+                    }
+                }
+                throw new HyperboxException("Adaptor of type " + type + " with ID " + adaptorId + " was not found");
+            case NAT:
+                throw new InvalidNetworkModeException(modeId, modeId + " does not support network adaptor");
+            default:
+                Logger.warning("Got a valid but non supported net mode: " + modeId);
+                throw new InvalidNetworkModeException(modeId);
+        }
+
+    }
+
+    @Override
+    public List<String> getLogFileList(String vmId) {
+        List<String> ret = new ArrayList<String>();
+        long i = 0;
+        while (!vbMgr.getVBox().findMachine(vmId).queryLogFilename(i).isEmpty()) {
+            ret.add(vbMgr.getVBox().findMachine(vmId).queryLogFilename(i));
+            i++;
+        }
+
+        return ret;
+    }
+
+    //FIXME check with vbox devs
+    @Override
+    public _MachineLogFile getLogFile(String vmId, long logId) {
+        byte[] ret = null;
+        StringBuilder log = new StringBuilder();
+        long i = 0;
+        do {
+            ret = vbMgr.getVBox().findMachine(vmId).readLog(logId, i, 65536L);
+            log.append(new String(ret));
+            i = i + 65536;
+        } while (ret.length > 0);
+        List<String> loglist = Arrays.asList(log.toString().split(System.getProperty("line.separator")));
+        _MachineLogFile logObj = new MachineLogFileIO(vmId, vbMgr.getVBox().findMachine(vmId).queryLogFilename(logId), loglist);
+        return logObj;
+    }
 
 }

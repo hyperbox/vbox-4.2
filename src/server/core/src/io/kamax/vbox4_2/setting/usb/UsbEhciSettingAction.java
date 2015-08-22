@@ -30,24 +30,24 @@ import org.virtualbox_4_2.LockType;
 
 public class UsbEhciSettingAction implements _MachineSettingAction {
 
-   @Override
-   public LockType getLockType() {
-      return LockType.Write;
-   }
+    @Override
+    public LockType getLockType() {
+        return LockType.Write;
+    }
 
-   @Override
-   public String getSettingName() {
-      return MachineAttribute.UsbEhci.toString();
-   }
+    @Override
+    public String getSettingName() {
+        return MachineAttribute.UsbEhci.toString();
+    }
 
-   @Override
-   public void set(IMachine machine, _Setting setting) {
-      machine.getUSBController().setEnabled(((BooleanSetting) setting).getValue());
-   }
+    @Override
+    public void set(IMachine machine, _Setting setting) {
+        machine.getUSBController().setEnabled(((BooleanSetting) setting).getValue());
+    }
 
-   @Override
-   public _Setting get(IMachine machine) {
-      return new UsbEhciSetting(machine.getUSBController().getEnabled());
-   }
+    @Override
+    public _Setting get(IMachine machine) {
+        return new UsbEhciSetting(machine.getUSBController().getEnabled());
+    }
 
 }

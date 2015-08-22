@@ -29,83 +29,83 @@ import org.virtualbox_4_2.NetworkAttachmentType;
 
 public enum VBoxNetMode implements _NetMode {
 
-   Bridged(true, false, false, false, false),
-   Generic(false, true, false, false, false),
-   HostOnly(true, false, true, true, false, NetServiceType.IPv4, NetServiceType.DHCP_IPv4),
-   Internal(false, true, false, false, false),
-   NAT(false, false, false, false, false, NetServiceType.NAT_IPv4);
+    Bridged(true, false, false, false, false),
+    Generic(false, true, false, false, false),
+    HostOnly(true, false, true, true, false, NetServiceType.IPv4, NetServiceType.DHCP_IPv4),
+    Internal(false, true, false, false, false),
+    NAT(false, false, false, false, false, NetServiceType.NAT_IPv4);
 
-   protected String id;
-   protected String label;
-   protected Set<String> services = new HashSet<String>();
-   protected boolean canUseAdaptor;
-   protected boolean canUseNetworkName;
-   protected boolean canAddAdaptor;
-   protected boolean canRemoveAdaptor;
-   protected boolean canRenameAdaptor;
+    protected String id;
+    protected String label;
+    protected Set<String> services = new HashSet<String>();
+    protected boolean canUseAdaptor;
+    protected boolean canUseNetworkName;
+    protected boolean canAddAdaptor;
+    protected boolean canRemoveAdaptor;
+    protected boolean canRenameAdaptor;
 
-   private VBoxNetMode(boolean canUseAdaptor, boolean canUseNetworkName, boolean canAddAdaptor, boolean canRemoveAdaptor, boolean canRenameAdaptor,
-         NetServiceType... services) {
-      for (NetServiceType type : services) {
-         this.services.add(type.getId());
-      }
-      this.canUseAdaptor = canUseAdaptor;
-      this.canUseNetworkName = canUseNetworkName;
-      this.canAddAdaptor = canAddAdaptor;
-      this.canRemoveAdaptor = canRemoveAdaptor;
-      this.canRenameAdaptor = canRenameAdaptor;
-   }
+    private VBoxNetMode(boolean canUseAdaptor, boolean canUseNetworkName, boolean canAddAdaptor, boolean canRemoveAdaptor, boolean canRenameAdaptor,
+            NetServiceType... services) {
+        for (NetServiceType type : services) {
+            this.services.add(type.getId());
+        }
+        this.canUseAdaptor = canUseAdaptor;
+        this.canUseNetworkName = canUseNetworkName;
+        this.canAddAdaptor = canAddAdaptor;
+        this.canRemoveAdaptor = canRemoveAdaptor;
+        this.canRenameAdaptor = canRenameAdaptor;
+    }
 
-   @Override
-   public String getId() {
-      return toString();
-   }
+    @Override
+    public String getId() {
+        return toString();
+    }
 
-   @Override
-   public String getLabel() {
-      return toString();
-   }
+    @Override
+    public String getLabel() {
+        return toString();
+    }
 
-   @Override
-   public Set<String> getSupportedServices() {
-      return new HashSet<String>(services);
-   }
+    @Override
+    public Set<String> getSupportedServices() {
+        return new HashSet<String>(services);
+    }
 
-   @Override
-   public boolean canUseAdaptor() {
-      return canUseAdaptor;
-   }
+    @Override
+    public boolean canUseAdaptor() {
+        return canUseAdaptor;
+    }
 
-   @Override
-   public boolean canUseNetworkName() {
-      return canUseNetworkName;
-   }
+    @Override
+    public boolean canUseNetworkName() {
+        return canUseNetworkName;
+    }
 
-   @Override
-   public boolean canAddAdaptor() {
-      return canAddAdaptor;
-   }
+    @Override
+    public boolean canAddAdaptor() {
+        return canAddAdaptor;
+    }
 
-   @Override
-   public boolean canRemoveAdaptor() {
-      return canRemoveAdaptor;
-   }
+    @Override
+    public boolean canRemoveAdaptor() {
+        return canRemoveAdaptor;
+    }
 
-   @Override
-   public boolean canRenameAdaptor() {
-      return canRenameAdaptor;
-   }
+    @Override
+    public boolean canRenameAdaptor() {
+        return canRenameAdaptor;
+    }
 
-   public static VBoxNetMode getEnum(String modeId) {
-      try {
-         return VBoxNetMode.valueOf(modeId);
-      } catch (IllegalArgumentException e) {
-         throw new InvalidNetworkModeException(modeId);
-      }
-   }
+    public static VBoxNetMode getEnum(String modeId) {
+        try {
+            return VBoxNetMode.valueOf(modeId);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidNetworkModeException(modeId);
+        }
+    }
 
-   public static VBoxNetMode getEnum(NetworkAttachmentType type) {
-      return getEnum(type.toString());
-   }
+    public static VBoxNetMode getEnum(NetworkAttachmentType type) {
+        return getEnum(type.toString());
+    }
 
 }

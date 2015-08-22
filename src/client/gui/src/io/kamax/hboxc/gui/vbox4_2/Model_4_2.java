@@ -20,22 +20,15 @@
 
 package io.kamax.hboxc.gui.vbox4_2;
 
-import io.kamax.hboxc.gui.hypervisor._GlobalConfigureView;
 import io.kamax.hboxc.gui.vbox.GenericModel;
-import io.kamax.hboxc.gui.vbox.GlobalConfigureView;
 import io.kamax.vbox.VirtualBox;
 import java.util.List;
 
 public class Model_4_2 extends GenericModel {
 
-   @Override
-   public List<String> getSupported() {
-      return VirtualBox.ID_GROUP.ALL_4_2;
-   }
-
-   @Override
-   public _GlobalConfigureView getConfigureView() {
-      return new GlobalConfigureView();
-   }
+    @Override
+    public List<String> getSupported() {
+        return VirtualBox.ID_GROUP.ALL_4_2;
+    }
 
 }

@@ -25,35 +25,35 @@ import org.virtualbox_4_2.IHost;
 
 public class VirtualboxHost implements _RawHost {
 
-   private IHost host;
+    private IHost host;
 
-   public VirtualboxHost(IHost host) {
-      this.host = host;
-   }
+    public VirtualboxHost(IHost host) {
+        this.host = host;
+    }
 
-   @Override
-   public String getHostname() {
-      return "Not supported";
-   }
+    @Override
+    public String getHostname() {
+        return "Not supported";
+    }
 
-   @Override
-   public String getOSName() {
-      return host.getOperatingSystem();
-   }
+    @Override
+    public String getOSName() {
+        return host.getOperatingSystem();
+    }
 
-   @Override
-   public String getOSVersion() {
-      return host.getOSVersion();
-   }
+    @Override
+    public String getOSVersion() {
+        return host.getOSVersion();
+    }
 
-   @Override
-   public long getMemorySize() {
-      return host.getMemorySize();
-   }
+    @Override
+    public long getMemorySize() {
+        return host.getMemorySize();
+    }
 
-   @Override
-   public long getMemoryAvailable() {
-      return host.getMemoryAvailable();
-   }
+    @Override
+    public long getMemoryAvailable() {
+        return host.getMemoryAvailable();
+    }
 
 }

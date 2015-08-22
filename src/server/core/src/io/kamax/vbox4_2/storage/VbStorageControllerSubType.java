@@ -24,29 +24,29 @@ import io.kamax.hboxd.hypervisor.storage._RawStorageControllerSubType;
 
 public enum VbStorageControllerSubType implements _RawStorageControllerSubType {
 
-   LsiLogic(VbStorageControllerType.SCSI),
-   BusLogic(VbStorageControllerType.SCSI),
-   IntelAhci(VbStorageControllerType.SATA),
-   PIIX3(VbStorageControllerType.IDE),
-   PIIX4(VbStorageControllerType.IDE),
-   ICH6(VbStorageControllerType.IDE),
-   I82078(VbStorageControllerType.Floppy),
-   LsiLogicSas(VbStorageControllerType.SAS);
+    LsiLogic(VbStorageControllerType.SCSI),
+    BusLogic(VbStorageControllerType.SCSI),
+    IntelAhci(VbStorageControllerType.SATA),
+    PIIX3(VbStorageControllerType.IDE),
+    PIIX4(VbStorageControllerType.IDE),
+    ICH6(VbStorageControllerType.IDE),
+    I82078(VbStorageControllerType.Floppy),
+    LsiLogicSas(VbStorageControllerType.SAS);
 
-   private VbStorageControllerType type;
+    private VbStorageControllerType type;
 
-   private VbStorageControllerSubType(VbStorageControllerType type) {
-      this.type = type;
-   }
+    private VbStorageControllerSubType(VbStorageControllerType type) {
+        this.type = type;
+    }
 
-   @Override
-   public String getParentType() {
-      return type.getId();
-   }
+    @Override
+    public String getParentType() {
+        return type.getId();
+    }
 
-   @Override
-   public String getId() {
-      return toString();
-   }
+    @Override
+    public String getId() {
+        return toString();
+    }
 
 }

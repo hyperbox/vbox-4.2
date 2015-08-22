@@ -29,64 +29,64 @@ import org.virtualbox_4_2.IMediumAttachment;
 
 public final class VirtualboxMediumAttachment implements _RawMediumAttachment {
 
-   private VBoxMachine machine;
-   private VirtualboxMedium medium;
-   private VirtualboxStorageController controller;
-   private long portId;
-   private long deviceId;
-   private String deviceType;
-   private boolean passThrough;
+    private VBoxMachine machine;
+    private VirtualboxMedium medium;
+    private VirtualboxStorageController controller;
+    private long portId;
+    private long deviceId;
+    private String deviceType;
+    private boolean passThrough;
 
-   public VirtualboxMediumAttachment(String machineUuid, IMediumAttachment medAttach) {
-      machine = new VBoxMachine(machineUuid);
-      if (medAttach.getMedium() != null) { // can be null for removable devices, see IMediumAttachment::medium
-         medium = new VirtualboxMedium(medAttach.getMedium());
-      }
-      controller = new VirtualboxStorageController(machine, medAttach.getController());
-      portId = medAttach.getPort();
-      deviceId = medAttach.getDevice();
-      deviceType = medAttach.getType().toString();
-      passThrough = medAttach.getPassthrough();
-   }
+    public VirtualboxMediumAttachment(String machineUuid, IMediumAttachment medAttach) {
+        machine = new VBoxMachine(machineUuid);
+        if (medAttach.getMedium() != null) { // can be null for removable devices, see IMediumAttachment::medium
+            medium = new VirtualboxMedium(medAttach.getMedium());
+        }
+        controller = new VirtualboxStorageController(machine, medAttach.getController());
+        portId = medAttach.getPort();
+        deviceId = medAttach.getDevice();
+        deviceType = medAttach.getType().toString();
+        passThrough = medAttach.getPassthrough();
+    }
 
-   @Override
-   public _RawVM getMachine() {
-      return machine;
-   }
+    @Override
+    public _RawVM getMachine() {
+        return machine;
+    }
 
-   @Override
-   public _RawMedium getMedium() {
-      return medium;
-   }
+    @Override
+    public _RawMedium getMedium() {
+        return medium;
+    }
 
-   @Override
-   public _RawStorageController getController() {
-      return controller;
-   }
+    @Override
+    public _RawStorageController getController() {
+        return controller;
+    }
 
-   @Override
-   public long getPortId() {
-      return portId;
-   }
+    @Override
+    public long getPortId() {
+        return portId;
+    }
 
-   @Override
-   public long getDeviceId() {
-      return deviceId;
-   }
+    @Override
+    public long getDeviceId() {
+        return deviceId;
+    }
 
-   @Override
-   public String getDeviceType() {
-      return deviceType;
-   }
+    @Override
+    public String getDeviceType() {
+        return deviceType;
+    }
 
-   @Override
-   public boolean isPassThrough() {
-      return passThrough;
-   }
+    @Override
+    public boolean isPassThrough() {
+        return passThrough;
+    }
 
-   @Override
-   public boolean hasMedium() {
-      return medium != null;
-   }
+    @Override
+    public boolean hasMedium() {
+        return medium != null;
+    }
 
 }
