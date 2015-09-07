@@ -22,6 +22,7 @@ package io.kamax.vbox4_2.net;
 
 import io.kamax.hbox.exception.HyperboxException;
 import io.kamax.hbox.hypervisor.net._NetService;
+import io.kamax.vbox.VBoxNetMode;
 import io.kamax.vbox.net.VBoxAdaptor;
 import org.virtualbox_4_2.HostNetworkInterfaceStatus;
 import org.virtualbox_4_2.IHostNetworkInterface;
